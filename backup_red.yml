@@ -1,0 +1,22 @@
+---
+- name: EXTRACCION DE CONFIGURACIONES BASE CISCO IOS
+  hosts: cisco
+  gather_facts: false
+
+  tasks:
+    - name: Extraer configuracion en ejecucion
+      cisco.ios.ios_command:
+        commands: show run
+      register: config_output
+
+    - name: Crear directorio de respaldos local
+      delegate_to: localhost
+      ansible.builtin.file:
+        path: ./respaldos
+        state: directory
+
+    - name: Almacenar la configuracion en archivos de texto
+      delegate_to: localhost
+      ansible.builtin.copy:
+        content: "{{ config_output.stdout[0] }}"
+        dest: "./respaldos/{{ inventory_hostname }}_base.txt"

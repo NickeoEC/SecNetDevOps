@@ -1,0 +1,74 @@
+---
+- name: PLAY 1 - CONFIGURACION DE SWITCHES DE ACCESO
+  hosts: acceso
+  gather_facts: false
+  tasks:
+    - name: TASK 1.1 - Asignacion de puertos de acceso a VLANs
+      cisco.ios.ios_config:
+        lines:
+          - switchport mode access
+          - switchport acces vlan 20
+        parents: interface GigabitEthernet0/2
+
+    - name: TASK 1.2 - Control de acceso con Port Security y STP (BPDUGuard)
+      cisco.ios.ios_config·
+        lines:
+          - switchport port-security
+          - switchport port-security maximum 2
+          - switchport port-security violation restrict
+          - spanning-tree portfast
+          - spanning-tree bpduguard enable
+        parents: interface GigabitEthernet0/2
+
+    - name: TASK 1.3 - Configuracion de puertos troncales
+      cisco.ios.ios_config:
+        lines:
+          - switchport trunk encapsulation dot1q
+          - switchport mode trunk
+        parents: interface GigabitEthernet0/1
+
+- name: PLAY 2 - CONFIGURACION DE SWITCH CORE
+  hosts: core
+  gather_facts: false
+  tasks:
+    - name: TASK 2.1 - Enrutamiento entre VLANS con SVIs
+      cisco.ios.ios_config:
+        lines:
+          - ip address 10.10.10.1 255.255.255.0
+          - no shutdown
+        parents: interface vlan 10
+
+    - name: TASK 2.2 - Configuracion de puerto enrutado y OSPF
+      cisco.ios.ios_config:
+        lines:
+          - no switchport
+          - ip address 172.16.2.2 255.255.255.252
+          - ip ospf 1 area 0
+          - no shutdown
+        parents: interface GigabitEthernet0/0
+
+    - name: TASK 2.3 - Configuracion de servidor DHCP en SW-CORE
+      cisco.ios.ios_config:
+        lines:
+          - network 10.10.10.0 255.255.255.0
+          - default-router 10.10.10.1
+        parents: ip dhcp pool POOL_ADMIN
+
+- name: PLAY 3 - CONFIGURACION DE ROUTERS
+  hosts: routers
+  gather_facts: false
+  tasks:
+    - name: TASK 3.1 - Enrutamiento OSPF
+      cisco.ios.ios_config:
+        lines:
+          - network 172.16.1.0 0.0.0.3 area 0
+        parents: router ospf 1
+
+    - name: TASK 3.2 - Verificar que salga a Internet
+      cisco.ios.ios_command:
+        commands: ping 8.8.8.8
+      register: ping_internet
+
+    - name: TASK 3.3 - Mostrar resultado de salida a Internet
+      debug:
+        msg: "{{ ping_internet.stdout }}"

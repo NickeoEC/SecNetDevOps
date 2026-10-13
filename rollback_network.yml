@@ -1,0 +1,23 @@
+---
+- name: PLAY DE ROLLBACK - VOLVER LA RED A CERO
+  hosts: cisco
+  gather_facts: false
+  tasks:
+    - name: TASK 1 - BORRAR OSPF
+      cisco.ios.ios_config:
+        lines:
+          - no router ospf 1
+        ignore_errors: yes
+
+    - name: TASK 2 - Eliminar VLANs
+      cisco.ios.ios_config:
+        lines:
+          - no vlan 10,20,30,40,50,60,100,200,300
+        ignore_errors: yes
+    - name: TASK 3 - Borrar interfaces SVIs
+      cisco.ios.ios_config:
+        lines:
+          - no interface vlan 10
+          - no interface vlan 20
+          - no interface vlan 30
+        ignore_errors: yes
