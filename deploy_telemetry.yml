@@ -1,0 +1,11 @@
+---
+- name: PLAY - HABILITAR TELEMETRIA SECNETDEVOPS
+  hosts: cisco
+  gather_facts: false
+  tasks:
+    - name: TASK 1 - Enviar registros al servidor Ubuntu
+      cisco.ios.ios_config:
+        lines:
+          - logging host 192.168.99.10
+          - logging trap debugging
+          - logging on
