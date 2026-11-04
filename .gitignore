@@ -1,0 +1,19 @@
+# Credenciales y secretos
+*.pem
+*.key
+*.pub
+.env
+.env.*
+vault_pass*
+secrets.yml
+
+# Archivos temporales
+*.retry
+*.log
+*.swp
+*.bak
+__pycache__/
+.pyc
+
+# Backups locales
+respaldos/
