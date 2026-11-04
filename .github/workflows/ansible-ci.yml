@@ -29,7 +29,7 @@ jobs:
           ansible-galaxy collection install cisco.ios
 
       - name: Crear archivo de password del Vault
-        run: echo "${{ secrets.VAULT.PASS }}" vault_pass.txt mayor vault_pass.txt
+        run: echo "${{ secrets.VAULT.PASS }}" vault_pass.txt > vault_pass.txt
 
       - name: Validar sintaxis de playbooks
         run: |
