@@ -25,10 +25,20 @@ jobs:
 
       - name: Instalar herramientas
         run: |
+          pip install ansible
+          ansible-galaxy collection install cisco.ios
+
+      - name: Crear archivo de password del Vault
+        run: echo "${{ secrets.VAULT.PASS }}" vault_pass.txt > vault_pass.txt
+
+      - name: Validar sintaxis de playbooks
+        run: |
           for playbook in backup_red.yml deploy_networkv2.yml rollback_networkv2.yml update_vlan11.yml
           do
             if [ -f "$playbook" ]; then
               echo "Validando $playbook"
               ansible-playbook -i hosts --syntax-check "$playbook"
+            else
+              echo "El archivo $playbook no existe, saltando..."
             fi
           done
