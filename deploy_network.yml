@@ -11,6 +11,7 @@
           - switchport port-security
           - switchport port-security maximum 2
           - switchport port-security violation restrict
+          - switchport port-security mac-address sticky
           - spanning-tree portfast
           - spanning-tree bpduguard enable
         parents: interface GigabitEthernet0/2
@@ -69,18 +70,22 @@
   hosts: core
   gather_facts: false
   tasks:
-    - name: TASK 2.1 - Hablilitar enrutamiento IP global
+    - name: TASK 2.1 - Hablilitar enrutamiento IP global y crear VLANs
       cisco.ios.ios_config:
         lines:
           - ip routing
+          - vlan 10
+          - vlan 20
 
-    - name: TASK 2.2 - Enrutamiento entre VLANS con SVIs (Crear SVI 10 y 20)
+    - name: TASK 2.2 - Enrutamiento entre VLANS con SVIs (Crear SVI 10)
       cisco.ios.ios_config:
         lines:
           - ip address 10.10.10.1 255.255.255.0
           - no shutdown
         parents: interface vlan 10
-    - cisco.ios.ios_config:
+
+    - name: TASK 2.2b - Enrutamiento entre VLANs con (SVIs Crear SVI 20)
+      cisco.ios.ios_config:
         lines:
           - ip address 10.10.20.1 255.255.255.0
           - no shutdown
@@ -94,7 +99,12 @@
           - no shutdown
         parents: interface GigabitEthernet0/0
 
-    - name: TASK 2.4 - Configuracion de servidor DHCP en SW-CORE
+    - name: TASK 2.4a - Excluir Gateway del HHCP
+      cisco.ios.ios_config:
+        lines:
+          - ip dhcp excluded-address 10.10.20.1
+
+    - name: TASK 2.4b - Configuracion de servidor DHCP en SW-CORE
       cisco.ios.ios_config:
         lines:
           - network 10.10.20.0 255.255.255.0
@@ -114,31 +124,75 @@
   hosts: routers
   gather_facts: false
   tasks:
-    - name: TASK 3.1 - Enrutamiento OSPF (Red WAN compartida en ambos Routers)
+    - name: TASK 3.0 - Restaurar la interfaz de Internet (DHCP) en R-MATRIZ
       cisco.ios.ios_config:
         lines:
-          - network 172.16.1.0 0.0.0.3 area 0
-        parents: router ospf 1
+          - ip address dhcp
+          - no shutdown
+        parents: interface GigabitEthernet0/0
+      when: inventory_hostname == '192.168.99.11'
 
-    - name: TASK 3.2 - OSPF Red de Transito EN R SUCURSAL
+    - name: TASK 3.0b - Anunciar la ruta por defecto en OSPF (R-MATRIZ)
       cisco.ios.ios_config:
         lines:
-          - network 172.16.2.0 0.0.0.3 area 0
+          - default-information originate
         parents: router ospf 1
       when: inventory_hostname == '192.168.99.11'
 
-    - name: TASK 3.3 - OSPF Red Lan Sucursal SOLO EN R-SUCURSAL
+    - name: TASK 3.0c - Forzar Ruta Estatica por defecto hacia Internet
       cisco.ios.ios_config:
         lines:
-          - network 10.30.60.0 0.0.0.255 area 0
-        parents: router ospf 1
+          - ip route 0.0.0.0 0.0.0.0 192.168.10.1
+      when: inventory_hostname == '192.168.99.11'
+
+    - name: TASK 3.1 - Configurar OSPF en R-MATRIZ
+      cisco.ios.ios_ospfv2:
+        config:
+          processes:
+            - process_id: 1
+              network:
+                - address: "172.16.1.0"
+                  wildcard_bits: "0.0.0.3"
+                  area: "0"
+                - address: "172.16.2.0"
+                  wildcard_bits: "0.0.0.3"
+                  area: "0"
+      when: inventory_hostname == '192.168.99.11'
+
+    - name: TASK 3.2 - Configurar OSPF en R-SUCURSAL
+      cisco.ios.ios_ospfv2:
+        config:
+          processes:
+            - process_id: 1
+              network:
+                - address: "172.16.1.0"
+                  wildcard_bits: "0.0.0.3"
+                  area: "0"
+                - address: "10.30.60.0"
+                  wildcard_bits: "0.0.0.255"
+                  area: "0"
       when: inventory_hostname == '192.168.99.12'
 
-    - name: TASK 3.4 - Verificar que salga a Internet
+    - name: TASK 3.2a - Configurar IP en la interfaz WAN del R-SUCURSAL
+      cisco.ios.ios_config:
+        lines:
+          - ip address 172.16.1.2 255.255.255.252
+          - no shutdowun
+    - name: TASK 3.2b -  ruta por defecto estatica hacia el R-SUCURSAL en R-SUCURSAL
+      cisco.ios.ios_config:
+        lines:
+          - ip route 0.0.0.0 0.0.0.0 172.16.1.1
+      when: inventory_hostname == '192.168.99.12'
+
+    - name: TASK 3.3 - Verificar que salga a Internet
       cisco.ios.ios_command:
         commands: ping 8.8.8.8
       register: ping_internet
+      retries: 5
+      delay: 5
+      until: "'!!!!!' in ping_internet.stdout[0]"
+      failed_when: "'!!!!!' not in ping_internet.stdout[0]"
 
-    - name: TASK 3.5 - Mostrar resultado de salida a Internet
+    - name: TASK 3.4 - Mostrar resultado de salida a Internet
       debug:
-        msg: "{{ ping_internet.stdout }}"
+        msg: "{{ ping_internet.stdout[0] }}"

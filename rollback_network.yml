@@ -3,13 +3,21 @@
   hosts: cisco
   gather_facts: false
   tasks:
-    - name: TASK 1 - BORRAR OSPF
+    - name: TASK 1 - Resetear interfaces fsicas (Limpiar trunks y accesos)
       cisco.ios.ios_config:
         lines:
+          - default interface GigabitEthernet0/1
+          - default interface GigabitEthernet0/2
+      ignore_errors: true
+
+    - name: TASK 2 - BORRAR DHCP y Enrutamiento global
+      cisco.ios.ios_config:
+        lines:
+          - no ip dhcp pool POOL_FINANZAS
           - no router ospf 1
       ignore_errors: true
 
-    - name: TASK 2 - Eliminar VLANs
+    - name: TASK 3 - Eliminar VLANs de forma idempotente y silenciosa
       cisco.ios.ios_config:
         lines:
           - no vlan 10
@@ -18,14 +26,25 @@
           - no vlan 40
           - no vlan 50
           - no vlan 60
+          - no vlan 61
           - no vlan 100
           - no vlan 200
           - no vlan 300
-      ignore_errors: true
-    - name: TASK 3 - Borrar interfaces SVIs
+      failed_when: false
+
+    - name: TASK 4 - Borrar IPs y apagar SVIs (Solo en el Core)
       cisco.ios.ios_config:
         lines:
-          - no interface vlan 10
-          - no interface vlan 20
-          - no interface vlan 30
+          - no ip address
+          - shutdown
+        parents: "interface {{ item }}"
+      loop:
+        - Vlan10
+        - Vlan20
+        - Vlan40
+        - Vlan50
+        - Vlan100
+        - Vlan200
+        - Vlan300
+      when: "'core' in group_names"
       ignore_errors: true

@@ -1,0 +1,66 @@
+---
+- name: PLAY DE ROLLBACK - VOLVER LA RED A LA CAPA FISICA
+  hosts: cisco
+  gather_facts: false
+  tasks:
+
+    - name: TASK 1 - Revertir puertos de acceso (Solo en SW de acceso)
+      cisco.ios.ios_config:
+        lines:
+          - no switchport port-security mac-address sticky
+          - no switchport port-security violation restrict
+          - no switchport port-security maximum
+          - no switchport port-security
+          - no switchport access vlan
+          - no switchport mode access
+          - no spanning-tree portfast
+          - no spanning-tree bpduguard
+        parents: interface GigabitEthernet0/2
+      when: "'acceso' in group_names"
+      ignore_errors: true
+
+    - name: TASK 1b - Revertir puertos troncales (Solo en SW de acceso)
+      cisco.ios.ios_config:
+        lines:
+          - no switchport mode trunk
+          - no switchport trunk encapsulation dot1q
+        parents: interface GigabitEthernet0/1
+      when: "'acceso' in group_names"
+      ignore_errors: true
+
+    - name: TASK 2 - BORRAR capa de servicios (DHCP y OSPF)
+      cisco.ios.ios_config:
+        lines:
+          - no ip dhcp pool POOL_FINANZAS
+          - no router ospf 1
+      ignore_errors: true
+
+    - name: TASK 3 - Eliminar VLANs de forma idempotente y silenciosa
+      cisco.ios.ios_config:
+        lines:
+          - no vlan 10
+          - no vlan 20
+          - no vlan 30
+          - no vlan 40
+          - no vlan 50
+          - no vlan 60
+          - no vlan 61
+          - no vlan 100
+          - no vlan 200
+          - no vlan 300
+      failed_when: false
+
+    - name: TASK 4 - Borrar interfaces SVIs de forma real (Solo en el Core)
+      cisco.ios.ios_interfaces:
+        config:
+          - name: Vlan10
+          - name: Vlan20
+          - name: Vlan30
+          - name: Vlan40
+          - name: Vlan50
+          - name: Vlan100
+          - name: Vlan200
+          - name: Vlan300
+        state: deleted
+      when: "'core' in group_names"
+      ignore_errors: true

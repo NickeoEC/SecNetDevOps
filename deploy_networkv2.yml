@@ -1,0 +1,302 @@
+---
+- name: PLAY 1 - CONFIGURACION DE SWITCHES DE ACCESO
+  hosts: acceso
+  gather_facts: false
+  tasks:
+
+    - name: TASK 1.1 - Control base y seguridad de puertos
+      cisco.ios.ios_config:
+        lines:
+          - switchport mode access
+          - switchport port-security
+          - switchport port-security maximum 2
+          - switchport port-security violation restrict
+          - switchport port-security mac-address sticky
+          - spanning-tree portfast
+          - spanning-tree bpduguard enable
+        parents: interface GigabitEthernet0/2
+
+    - name: TASK 1.2 - Crear VLANs en Base de Datos de forma declarativa
+      cisco.ios.ios_vlans:
+        config:
+          - vlan_id: 10
+            name: ADMIN
+          - vlan_id: 20
+            name: FINANZAS
+          - vlan_id: 30
+            name: RRHH
+          - vlan_id: 40
+            name: TI
+          - vlan_id: 50
+            name: SERVIDORES
+          - vlan_id: 60
+            name: SUCURSAL
+        state: merged
+
+    - name: TASK 1.3 - Asignar VLAN 20 (SW ACC 01)
+      cisco.ios.ios_config:
+        lines:
+          - switchport access vlan 20
+        parents: interface GigabitEthernet0/2
+      when: inventory_hostname == '192.168.99.23'
+
+    - name: TASK 1.4 - Asignar VLAN 50 SW-ACC-02
+      cisco.ios.ios_config:
+        lines:
+          - switchport access vlan 50
+        parents: interface GigabitEthernet0/2
+      when: inventory_hostname == '192.168.99.24'
+
+    - name: TASK 1.5 - Asignar VLAN 60 (Solo en SW SUC 01)
+      cisco.ios.ios_config:
+        lines:
+          - switchport access vlan 60
+        parents: interface GigabitEthernet0/2
+      when: inventory_hostname == '192.168.99.25'
+
+    - name: TASK 1.6 - Asignar VLAN 30 a PC-RRHH (SW-ACC-01)
+      cisco.ios.ios_config:
+        lines:
+          - switchport access vlan 30
+        parents: interface GigabitEthernet0/3
+      when: inventory_hostname == '192.168.99.23'
+
+    - name: TASK 1.7 - Asignar VLAN 40 a PC-TI (SW-ACC-01)
+      cisco.ios.ios_config:
+        lines:
+          - switchport access vlan 40
+        parents: interface GigabitEthernet1/0
+      when: inventory_hostname == '192.168.99.23'
+
+    - name: TASK 1.8 - Asignar VLAN 10 a PC-ADMIN (SW-ACC-02)
+      cisco.ios.ios_config:
+        lines:
+          - switchport access vlan 10
+        parents: interface GigabitEthernet0/3
+      when: inventory_hostname == '192.168.99.24'
+
+    - name: TASK 1.9 - Configuracion de puertos troncales
+      cisco.ios.ios_config:
+        lines:
+          - switchport trunk encapsulation dot1q
+          - switchport mode trunk
+        parents: interface GigabitEthernet0/1
+      when: inventory_hostname != '192.168.99.25'
+
+- name: PLAY 1.5 - CONFIGURACION DEL SWITCH DE DISTRIBUCION
+  hosts: distribucion
+  gather_facts: false
+  tasks:
+    - name: TASK 1.5.1 - Crear VLANs base en SW-DIST-01
+      cisco.ios.ios_vlans:
+        config:
+          - vlan_id: 10
+            name: ADMIN
+          - vlan_id: 20
+            name: FINANZAS
+          - vlan_id: 30
+            name: RRHH
+          - vlan_id: 40
+            name: TI
+          - vlan_id: 50
+            name: SERVIDORES
+          - vlan_id: 60
+            name: SUCURSAL
+        state: merged
+    - name: TASK 1.5.2 - Configurar puertos troncales en SW-DIST-01
+      cisco.ios.ios_config:
+        lines:
+          - switchport trunk encapsulation dot1q
+          - switchport mode trunk
+        parents: "interface {{ item }}"
+      loop:
+        - GigabitEthernet0/1
+        - GigabitEthernet0/2
+        - GigabitEthernet0/3
+
+- name: PLAY 2 - CONFIGURACION DE SWITCH CORE
+  hosts: core
+  gather_facts: false
+  tasks:
+    - name: TASK 2.1 - crear VLANs base en el Core
+      cisco.ios.ios_vlans:
+        config:
+          - vlan_id: 10
+            name: ADMIN
+          - vlan_id: 20
+            name: FINANZAS
+          - vlan_id: 30
+            name: RRHH
+          - vlan_id: 40
+            name: TI
+          - vlan_id: 50
+            name: SERVIDORES
+          - vlan_id: 100
+            name: DESARROLLO
+          - vlan_id: 200
+            name: PREPRODUCCION
+          - vlan_id: 300
+            name: PRODUCCION
+        state: merged
+
+    - name: TASK 2.2 - Enrutamiento entre VLANS con SVIs (Crear SVI 10)
+      cisco.ios.ios_config:
+        lines:
+          - ip address 10.10.10.1 255.255.255.0
+          - no shutdown
+        parents: interface vlan 10
+
+    - name: TASK 2.3 - Enrutamiento entre VLANs con (SVIs Crear SVI 20)
+      cisco.ios.ios_config:
+        lines:
+          - ip address 10.10.20.1 255.255.255.0
+          - no shutdown
+        parents: interface vlan 20
+
+    - name: TASK 2.4 - Enrutamiento entre VLANs con SVIs (Crear SVI 30)
+      cisco.ios.ios_config:
+        lines:
+          - ip address 10.10.30.1 255.255.255.0
+          - no shutdown
+        parents: interface vlan 30
+
+    - name: TASK 2.5 - Enrutamiento entre VLANs con SVIs (Crear SVI 40)
+      cisco.ios.ios_config:
+        lines:
+          - ip address 10.10.40.1 255.255.255.0
+          - no shutdown
+        parents: interface vlan 40
+
+    - name: TASK 2.6 - Enrutamiento entre VLANs con SVIs (Crear SVI 50)
+      cisco.ios.ios_config:
+        lines:
+          - ip address 10.10.50.1 255.255.255.0
+          - no shutdown
+        parents: interface vlan 50
+
+    - name: TASK 2.7 - Enrutamiento entre VLANs con SVIs (Crear SVI 100)
+      cisco.ios.ios_config:
+        lines:
+          - ip address 10.20.10.1 255.255.255.0
+          - no shutdown
+        parents: interface vlan 100
+
+    - name: TASK 2.8 - Enrutamiento entre VLANs con SVIs (Crear SVI 200)
+      cisco.ios.ios_config:
+        lines:
+          - ip address 10.20.20.1 255.255.255.0
+          - no shutdown
+        parents: interface vlan 200
+
+    - name: TASK 2.9 - Enrutamiento entre VLANs con SVIs (Crear SVI 300)
+      cisco.ios.ios_config:
+        lines:
+          - ip address 10.20.30.1 255.255.255.0
+          - no shutdown
+        parents: interface vlan 300
+
+    - name: TASK 2.10 - Conectar servidores a la red del Core (100)
+      cisco.ios.ios_config:
+        lines:
+          - switchport mode access
+          - switchport access vlan 100
+        parents: interface GigabitEthernet0/2
+
+    - name: TASK 2.11 - Conectar servidores a la red del Core (200)
+      cisco.ios.ios_config:
+        lines:
+          - switchport mode access
+          - switchport access vlan 200
+        parents: interface GigabitEthernet0/3
+
+    - name: TASK 2.12 - Conectar servidores a la red del Core (300)
+      cisco.ios.ios_config:
+        lines:
+          - switchport mode access
+          - switchport access vlan 300
+        parents: interface GigabitEthernet1/0
+
+    - name: TASK 2.13a - Excluir el Gateway del DHCP
+      cisco.ios.ios_config:
+        lines:
+          - ip dhcp excluded-address 10.10.20.1
+
+    - name: TASK 2.13b - Configuracion de servidor DHCP en SW-CORE
+      cisco.ios.ios_config:
+        lines:
+          - network 10.10.20.0 255.255.255.0
+          - default-router 10.10.20.1
+          - dns-server 8.8.8.8
+        parents: ip dhcp pool POOL_FINANZAS
+
+    - name: TASK 2.14 - OSPF estructurado en el SW CORE
+      cisco.ios.ios_ospfv2:
+        config:
+          processes:
+            - process_id: 1
+              network:
+                - address: "172.16.2.0"
+                  wildcard_bits: "0.0.0.3"
+                  area: "0"
+                - address: "10.10.0.0"
+                  wildcard_bits: "0.0.255.255"
+                  area: "0"
+                - address: "10.20.0.0"
+                  wildcard_bits: "0.0.255.255"
+                  area: "0"
+
+- name: PLAY 3 - CONFIGURACION DE ROUTERS
+  hosts: routers
+  gather_facts: false
+  tasks:
+
+    - name: TASK 3.1 - Configurar OSPF en R-MATRIZ
+      cisco.ios.ios_ospfv2:
+        config:
+          processes:
+            - process_id: 1
+              default_information:
+                originate: true
+              network:
+                - address: "172.16.1.0"
+                  wildcard_bits: "0.0.0.3"
+                  area: "0"
+                - address: "172.16.2.0"
+                  wildcard_bits: "0.0.0.3"
+                  area: "0"
+      when: inventory_hostname == '192.168.99.11'
+
+    - name: TASK 3.2 - Configurar OSPF en R-SUCURSAL
+      cisco.ios.ios_ospfv2:
+        config:
+          processes:
+            - process_id: 1
+              network:
+                - address: "172.16.1.0"
+                  wildcard_bits: "0.0.0.3"
+                  area: "0"
+                - address: "10.30.60.0"
+                  wildcard_bits: "0.0.0.255"
+                  area: "0"
+      when: inventory_hostname == '192.168.99.12'
+
+    - name: TASK 3.2b - ruta por defecto esttica hacia R-MATRIZ (Solo en R-SUCURSAL)
+      cisco.ios.ios_config:
+        lines:
+          - ip route 0.0.0.0 0.0.0.0 192.168.10.1
+      when: inventory_hostname == '192.168.99.12'
+
+    - name: TASK 3.3 - Verificar que salga a Internet
+      cisco.ios.ios_command:
+        commands: ping 8.8.8.8
+      register: ping_internet
+      retries: 5
+      delay: 5
+      until: "'!!!!!' in ping_internet.stdout[0]"
+      failed_when: "'!!!!!' not in ping_internet.stdout[0]"
+      when: inventory_hostname == '192.168.99.11'
+
+    - name: TASK 3.4 - Mostrar resultado de salida a Internet
+      debug:
+        msg: "{{ ping_internet.stdout[0] }}"
+      when: inventory_hostname == '192.168.99.11'

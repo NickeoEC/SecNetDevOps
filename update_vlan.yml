@@ -1,0 +1,27 @@
+---
+- name: PLAY - MIGRACION
+  hosts: acceso
+  gather_facts: false
+  tasks:
+    - name: TASK 1 - CREAR nueva Vlan
+      cisco.ios.ios_config:
+        lines:
+          - name GERENCIA
+        parents: vlan 61
+      when: inventory_hostname == '192.168.99.25'
+
+    - name: TASK 2 - asignacion
+      cisco.ios.ios_config:
+        lines:
+          - switchport mode access
+          - switchport access vlan 61
+          - no shutdown
+        parents: interface GigabitEthernet0/2
+      when: inventory_hostname == '192.168.99.25'
+
+    - name: TASK 3 - BORRAR VLAN 60
+      cisco.ios.ios_config:
+        lines:
+          - no vlan 60
+      ignore_errors: true
+      when: inventory_hostname == '192.168.99.25'
