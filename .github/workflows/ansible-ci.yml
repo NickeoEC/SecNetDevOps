@@ -1,0 +1,34 @@
+name: SecNetDevOps - Ansible CI
+
+on:
+  push:
+    branches:
+      - main
+      - "feature/**"
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  validate:
+    name: Validador playbooks Ansible
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Instalar herramientas
+        run: |
+          for playbook in backup_red.yml deploy_networkv2.yml rollback_networkv2.yml update_vlan11.yml
+          do
+            if [ -f "$playbook" ]: then
+              echo "Validando $playbook"
+              ansible-playbook -i hosts --syntax-check "$playbook"
+            fi
+          done
