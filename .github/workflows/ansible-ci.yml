@@ -27,7 +27,7 @@ jobs:
         run: |
           for playbook in backup_red.yml deploy_networkv2.yml rollback_networkv2.yml update_vlan11.yml
           do
-            if [ -f "$playbook" ]: then
+            if [ -f "$playbook" ]; then
               echo "Validando $playbook"
               ansible-playbook -i hosts --syntax-check "$playbook"
             fi
